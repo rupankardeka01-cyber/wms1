@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Management v4 (Firebase)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <!-- Firebase Compat SDK (v9+ compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <!-- ExcelJS for styled .xlsx export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <style>
+        /* ===== RESET & BASE ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        :root {
+            --primary: #2a5c8a;
+            --primary-light: #3a7cc4;
+            --primary-dark: #1a3c5e;
+            --bg: #f0f4f8;
+            --card: #ffffff;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 14px;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+        html {
+            font-size: 14px;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        button {
+            cursor: pointer;
+            border: none;
+            outline: none;
+            background: none;
+            font-size: inherit;
+        }
+        input,
+        select,
+        textarea {
+            font-size: inherit;
+            outline: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 100%;
+            transition: border 0.2s;
+            background: #fff;
+        }
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(42, 92, 138, 0.12);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 10px;
+        }
+
+        /* ===== LOGIN ===== */
+        .login-page {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .login-page.hidden {
+            display: none;
+        }
+        .login-card {
+            background: #fff;
+            padding: 40px 32px;
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        }
+        .login-card h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--primary);
+        }
+        .login-card p {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .login-card .form-group {
+            margin-bottom: 16px;
+        }
+        .login-card label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        .login-card input {
+            padding: 10px 14px;
+        }
+        .login-card .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        .login-card .btn-login:hover {
+            background: var(--primary-light);
+        }
+        .login-error {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 8px;
+            text-align: center;
+            display: none;
+        }
+        .login-error.show {
+            display: block;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #fff;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-brand {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-brand i {
+            font-size: 26px;
+            color: var(--primary);
+        }
+        .sidebar-brand h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .sidebar-nav .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .sidebar-nav .nav-item:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+        .sidebar-nav .nav-item.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .sidebar-nav .nav-item i {
+            width: 20px;
+            font-size: 16px;
+        }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+        }
+        .sidebar-footer .btn-logout {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--danger);
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 8px;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .sidebar-footer .btn-logout:hover {
+            background: #fee2e2;
+        }
+
+        /* ===== MAIN ===== */
+        .main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 24px 28px;
+            min-height: 100vh;
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .topbar h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .topbar .hamburger {
+            display: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .topbar .hamburger:hover {
+            background: var(--bg);
+        }
+        .topbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        .topbar .user-info i {
+            font-size: 18px;
+        }
+
+        /* ===== PAGES ===== */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== DASHBOARD ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #fff;
+            padding: 20px 22px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .stat-card:nth-child(2) {
+            border-left-color: var(--success);
+        }
+        .stat-card:nth-child(3) {
+            border-left-color: var(--danger);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .dashboard-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+        }
+        .dashboard-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dashboard-card .list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .dashboard-card .list-item:last-child {
+            border-bottom: none;
+        }
+        .dashboard-card .list-item .name {
+            font-weight: 500;
+        }
+        .dashboard-card .list-item .status {
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .status-present {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .status-absent {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .status-half {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .status-leave {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .status-holiday {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .status-approved {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .status-rejected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* ===== TABLE WRAPPER ===== */
+        .table-wrapper {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            overflow-x: auto;
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .table-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .table-header .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .table-header .actions input,
+        .table-header .actions select {
+            width: auto;
+            padding: 6px 12px;
+            min-width: 140px;
+        }
+        .btn {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-light);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #16a34a;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-warning {
+            background: var(--warning);
+            color: #fff;
+        }
+        .btn-warning:hover {
+            background: #d97706;
+        }
+        .btn-excel {
+            background: #1d6f42;
+            color: #fff;
+        }
+        .btn-excel:hover {
+            background: #145c34;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover {
+            background: var(--bg);
+        }
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        table th {
+            background: var(--bg);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        table tr:hover td {
+            background: #f8fafc;
+        }
+        .badge {
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal {
+            background: #fff;
+            border-radius: var(--radius);
+            max-width: 540px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px 30px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+            animation: modalIn 0.25s ease;
+        }
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        .modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .modal .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .modal .modal-header .close-modal {
+            font-size: 22px;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .modal .modal-header .close-modal:hover {
+            background: var(--bg);
+        }
+        .modal .form-group {
+            margin-bottom: 14px;
+        }
+        .modal .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        .modal .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .modal .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            margin-top: 6px;
+        }
+        .modal .btn-submit:hover {
+            background: var(--primary-light);
+        }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 340px;
+        }
+        .toast {
+            background: #1e293b;
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+            animation: slideUp 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 992px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main {
+                margin-left: 0;
+                padding: 16px;
+            }
+            .topbar .hamburger {
+                display: block;
+            }
+            .topbar h1 {
+                font-size: 18px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .modal .form-row {
+                grid-template-columns: 1fr;
+            }
+            .table-header .actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .table-header .actions input,
+            .table-header .actions select {
+                min-width: auto;
+                width: 100%;
+            }
+            .login-card {
+                padding: 28px 20px;
+            }
+        }
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .stat-card .stat-value {
+                font-size: 22px;
+            }
+            .modal {
+                padding: 20px;
+            }
+            .main {
+                padding: 12px;
+            }
+        }
+
+        /* ===== SIDEBAR OVERLAY ===== */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 99;
+            display: none;
+        }
+        .sidebar-overlay.open {
+            display: block;
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state i {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 12px;
+        }
+        .empty-state p {
+            font-size: 15px;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+        .text-success {
+            color: var(--success);
+        }
+        .text-danger {
+            color: var(--danger);
+        }
+        .text-warning {
+            color: var(--warning);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== LOGIN ===== -->
+    <div class="login-page" id="loginPage">
+        <div class="login-card">
+            <h1><i class="fas fa-user-shield"></i> Admin</h1>
+            <p>Sign in to manage your employees</p>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="loginUser" value="admin" placeholder="admin" />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPass" value="admin123" placeholder="admin123" />
+            </div>
+            <button class="btn-login" onclick="handleLogin()">Sign In</button>
+            <div class="login-error" id="loginError">Invalid credentials. Try admin / admin123</div>
+        </div>
+    </div>
+
+    <!-- ===== SIDEBAR OVERLAY (mobile) ===== -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-users-cog"></i>
+            <h2>EMS</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+                <i class="fas fa-chart-pie"></i> Dashboard
+            </div>
+            <div class="nav-item" data-page="employees" onclick="navigate('employees')">
+                <i class="fas fa-user-plus"></i> Employees
+            </div>
+            <div class="nav-item" data-page="attendance" onclick="navigate('attendance')">
+                <i class="fas fa-clipboard-check"></i> Attendance
+            </div>
+            <div class="nav-item" data-page="leaves" onclick="navigate('leaves')">
+                <i class="fas fa-calendar-alt"></i> Leaves
+            </div>
+            <div class="nav-item" data-page="reports" onclick="navigate('reports')">
+                <i class="fas fa-file-alt"></i> Reports
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="btn-logout" onclick="handleLogout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="user-info">
+                <i class="fas fa-user-circle"></i>
+                <span>Admin</span>
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD ===== -->
+        <div class="page active" id="page-dashboard">
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="stat-label">Total Employees</div><div class="stat-value" id="statTotal">0</div></div>
+                <div class="stat-card"><div class="stat-label">Present Today</div><div class="stat-value" id="statPresent">0</div></div>
+                <div class="stat-card"><div class="stat-label">Absent Today</div><div class="stat-value" id="statAbsent">0</div></div>
+            </div>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-clock" style="color:var(--primary);"></i> Today's Attendance</h3>
+                    <div id="todayAttendanceList"><div class="empty-state"><p>No records yet today</p></div></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-hourglass-half" style="color:var(--warning);"></i> Pending Leave Requests</h3>
+                    <div id="pendingLeaveList"><div class="empty-state"><p>No pending requests</p></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== EMPLOYEES (ID column removed) ===== -->
+        <div class="page" id="page-employees">
+            <div class="table-wrapper">
+                <div class="table-header">
+                    <h3><i class="fas fa-users" style="color:var(--primary);"></i> Employee Management</h3>
+                    <div class="actions">
+                        <input type="text" id="empSearch" placeholder="Search by name..." oninput="renderEmployees()" />
+                        <select id="empDeptFilter" onchange="renderEmployees()"></select>
+                        <button class="btn btn-primary" onclick="openModal('employee')"><i class="fas fa-plus"></i> Add</button>
+                    </div>
+                </div>
+                <div id="employeeTableContainer"></div>
+            </div>
+        </div>
+
+        <!-- ===== ATTENDANCE (Designation column added) ===== -->
+        <div class="page" id="page-attendance">
+            <div class="table-wrapper">
+                <div class="table-header">
+                    <h3><i class="fas fa-clipboard-check" style="color:var(--success);"></i> Daily Attendance</h3>
+                    <div class="actions">
+                        <label>Date: <input type="date" id="attDate" onchange="renderAttendance()" /></label>
+                        <button class="btn btn-success" onclick="markAllPresent()">Mark All Present</button>
+                    </div>
+                </div>
+                <div id="attendanceTableContainer"></div>
+            </div>
+        </div>
+
+        <!-- ===== LEAVES ===== -->
+        <div class="page" id="page-leaves">
+            <div class="table-wrapper">
+                <div class="table-header">
+                    <h3><i class="fas fa-calendar-alt" style="color:var(--warning);"></i> Leave Management</h3>
+                    <div class="actions">
+                        <select id="leaveStatusFilter" onchange="renderLeaves()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="openModal('leave')"><i class="fas fa-plus"></i> Apply</button>
+                    </div>
+                </div>
+                <div id="leaveTableContainer"></div>
+            </div>
+        </div>
+
+        <!-- ===== REPORTS ===== -->
+        <div class="page" id="page-reports">
+            <div class="table-wrapper">
+                <div class="table-header">
+                    <h3><i class="fas fa-file-alt" style="color:var(--info);"></i> Reports</h3>
+                    <div class="actions" style="flex-wrap:wrap;">
+                        <select id="reportPeriod" onchange="renderReports()">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                        <input type="date" id="reportDate" onchange="renderReports()" />
+                        <button class="btn btn-success" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</button>
+                        <button class="btn btn-warning" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-excel" onclick="exportExcelShiftSchedule()"><i class="fas fa-file-excel"></i> Shift Schedule</button>
+                    </div>
+                </div>
+                <div id="reportTableContainer"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===== MODAL ===== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Title</h2>
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- ===== TOAST CONTAINER ===== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ============================================================
+        //  FIREBASE CONFIG & INIT
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAap2GFEa6778X2v6tRj8ec-eSsR8tXYDk",
+            authDomain: "project-12129cb4-c223-4008-92b.firebaseapp.com",
+            databaseURL: "https://project-12129cb4-c223-4008-92b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "project-12129cb4-c223-4008-92b",
+            storageBucket: "project-12129cb4-c223-4008-92b.firebasestorage.app",
+            messagingSenderId: "44587974750",
+            appId: "1:44587974750:web:43d733880937a4973834cf",
+            measurementId: "G-CK91840DB3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const dbRef = db.ref('ems_data');
+
+        // ============================================================
+        //  DATA LAYER (Sync with Firebase)
+        // ============================================================
+        function getDefaultData() {
+            return {
+                employees: [],
+                attendance: [],
+                leaves: [],
+                nextEmpId: 1,
+                nextAttId: 1,
+                nextLeaveId: 1
+            };
+        }
+
+        let data = getDefaultData();
+        let firebaseReady = false;
+
+        // Listen to Firebase Realtime Database
+        dbRef.on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (val) {
+                data = val;
+                // Ensure all keys exist (in case of missing fields)
+                const def = getDefaultData();
+                for (const k in def) {
+                    if (!(k in data)) data[k] = def[k];
+                }
+            } else {
+                // If database is empty, seed with default data
+                data = getDefaultData();
+                // Seed with sample data (run only once)
+                seedSampleData();
+            }
+            firebaseReady = true;
+            // Refresh all UI components
+            refreshAll();
+            toast('Data synced from Firebase', 'success');
+        }, (error) => {
+            console.error('Firebase read error:', error);
+            toast('Firebase connection error. Using local fallback.', 'error');
+            // Fallback to localStorage if Firebase fails
+            const local = localStorage.getItem('ems_data_fallback');
+            if (local) {
+                try {
+                    data = JSON.parse(local);
+                } catch (e) { data = getDefaultData(); }
+            }
+            firebaseReady = false;
+            refreshAll();
+        });
+
+        // Sync data to Firebase (and fallback to localStorage)
+        function syncData() {
+            if (firebaseReady) {
+                dbRef.set(data).catch(err => {
+                    console.error('Firebase write error:', err);
+                    toast('Failed to save to Firebase. Check console.', 'error');
+                });
+            }
+            // Always keep a local fallback
+            localStorage.setItem('ems_data_fallback', JSON.stringify(data));
+        }
+
+        // ============================================================
+        //  SEED SAMPLE DATA (only if database is empty)
+        // ============================================================
+        function seedSampleData() {
+            if (data.employees.length > 0) return; // Already seeded
+
+            const sample = [
+                { id: data.nextEmpId++, name: 'Nikunja Deka', department: 'Engineering', designation: 'Dev',
+                    phone: '+91 98765 43210' },
+                { id: data.nextEmpId++, name: 'Faruk Ahmed', department: 'Marketing', designation: 'Lead',
+                    phone: '+91 98765 43211' },
+                { id: data.nextEmpId++, name: 'Chandan Sarma', department: 'Sales', designation: 'Manager',
+                    phone: '+91 98765 43212' },
+                { id: data.nextEmpId++, name: 'Nayan Sarmah', department: 'HR', designation: 'Specialist',
+                    phone: '+91 98765 43213' },
+                { id: data.nextEmpId++, name: 'Deepjyoti Das', department: 'Finance', designation: 'Analyst',
+                    phone: '+91 98765 43214' },
+                { id: data.nextEmpId++, name: 'Chiranjib Baruah', department: 'Operations', designation: 'Ops Lead',
+                    phone: '+91 98765 43215' },
+                { id: data.nextEmpId++, name: 'Bishal Biswas', department: 'Engineering', designation: 'Frontend',
+                    phone: '+91 98765 43216' },
+            ];
+            data.employees.push(...sample);
+
+            const today = getToday();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yStr = toDateStr(yesterday);
+
+            const statuses = ['present', 'present', 'present', 'absent', 'present', 'half', 'present'];
+            data.employees.forEach((e, i) => {
+                const s = statuses[i % statuses.length];
+                data.attendance.push({
+                    id: data.nextAttId++,
+                    employeeId: e.id,
+                    date: today,
+                    status: s,
+                    checkIn: null,
+                    checkOut: null
+                });
+                const s2 = ['present', 'present', 'absent', 'present', 'present', 'leave', 'present'][i % 7];
+                data.attendance.push({
+                    id: data.nextAttId++,
+                    employeeId: e.id,
+                    date: yStr,
+                    status: s2,
+                    checkIn: null,
+                    checkOut: null
+                });
+            });
+
+            const l1 = { id: data.nextLeaveId++, employeeId: 3, fromDate: today, toDate: today, reason: 'Family emergency',
+                status: 'pending' };
+            const l2 = { id: data.nextLeaveId++, employeeId: 5, fromDate: yStr, toDate: yStr, reason: 'Sick leave',
+                status: 'approved' };
+            const l3 = { id: data.nextLeaveId++, employeeId: 1, fromDate: today, toDate: today, reason: 'Doctor appointment',
+                status: 'pending' };
+            data.leaves.push(l1, l2, l3);
+
+            syncData();
+        }
+
+        // ============================================================
+        //  HELPERS
+        // ============================================================
+        function getToday() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function formatDate(d) {
+            if (!d) return '-';
+            const parts = d.split('-');
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
+        }
+
+        function toDateStr(d) {
+            return d.toISOString().split('T')[0];
+        }
+
+        function getEmployee(id) {
+            return data.employees.find(e => e.id === id);
+        }
+
+        function getEmployeeName(id) {
+            const e = getEmployee(id);
+            return e ? e.name : 'Unknown';
+        }
+
+        function getWeekRange() {
+            const now = new Date();
+            const day = now.getDay() || 7;
+            const start = new Date(now);
+            start.setDate(now.getDate() - day + 1);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            return { start: toDateStr(start), end: toDateStr(end) };
+        }
+
+        function getMonthRange() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1);
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { start: toDateStr(start), end: toDateStr(end) };
+        }
+
+        function formatDateExcel(date) {
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear();
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            return `${d}/${m}/${y} ${dayNames[date.getDay()]}`;
+        }
+
+        // ============================================================
+        //  TOAST
+        // ============================================================
+        function toast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle' };
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.innerHTML = `<i class="fas ${icons[type] || icons.success}"></i> ${msg}`;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'all 0.3s';
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
+
+        // ============================================================
+        //  LOGIN / LOGOUT
+        // ============================================================
+        function handleLogin() {
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            if (user === 'admin' && pass === 'admin123') {
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('loginError').classList.remove('show');
+                toast('Welcome back, Admin!', 'success');
+                refreshAll();
+            } else {
+                document.getElementById('loginError').classList.add('show');
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('Logout?')) {
+                document.getElementById('loginPage').classList.remove('hidden');
+                document.getElementById('loginError').classList.remove('show');
+                toast('Logged out', 'warning');
+            }
+        }
+
+        document.getElementById('loginPass').addEventListener('keydown', e => {
+            if (e.key === 'Enter') handleLogin();
+        });
+        document.getElementById('loginUser').addEventListener('keydown', e => {
+            if (e.key === 'Enter') handleLogin();
+        });
+
+        // ============================================================
+        //  NAVIGATION
+        // ============================================================
+        function navigate(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+            const titles = {
+                dashboard: 'Dashboard',
+                employees: 'Employees',
+                attendance: 'Attendance',
+                leaves: 'Leaves',
+                reports: 'Reports'
+            };
+            document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
+            if (page === 'dashboard') refreshDashboard();
+            if (page === 'employees') renderEmployees();
+            if (page === 'attendance') renderAttendance();
+            if (page === 'leaves') renderLeaves();
+            if (page === 'reports') renderReports();
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+                document.getElementById('sidebarOverlay').classList.remove('open');
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        // ============================================================
+        //  REFRESH ALL
+        // ============================================================
+        function refreshAll() {
+            if (!firebaseReady && data.employees.length === 0) {
+                // If no data and firebase not ready, try local fallback
+                const local = localStorage.getItem('ems_data_fallback');
+                if (local) {
+                    try {
+                        data = JSON.parse(local);
+                    } catch (e) {}
+                }
+            }
+            refreshDashboard();
+            renderEmployees();
+            renderAttendance();
+            renderLeaves();
+            renderReports();
+        }
+
+        // ============================================================
+        //  DASHBOARD
+        // ============================================================
+        function refreshDashboard() {
+            const total = data.employees.length;
+            const today = getToday();
+            const todayAtt = data.attendance.filter(a => a.date === today);
+            const present = todayAtt.filter(a => a.status === 'present').length;
+            const absent = todayAtt.filter(a => a.status === 'absent').length;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPresent').textContent = present;
+            document.getElementById('statAbsent').textContent = absent;
+
+            const listEl = document.getElementById('todayAttendanceList');
+            if (todayAtt.length === 0) {
+                listEl.innerHTML = `<div class="empty-state"><p>No records yet today</p></div>`;
+            } else {
+                let html = '';
+                todayAtt.forEach(a => {
+                    const name = getEmployeeName(a.employeeId);
+                    const statusClass = `status-${a.status}`;
+                    html += `<div class="list-item">
+                        <span class="name">${name}</span>
+                        <span class="status ${statusClass}">${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>
+                    </div>`;
+                });
+                listEl.innerHTML = html;
+            }
+
+            const pending = data.leaves.filter(l => l.status === 'pending');
+            const pendingEl = document.getElementById('pendingLeaveList');
+            if (pending.length === 0) {
+                pendingEl.innerHTML = `<div class="empty-state"><p>No pending requests</p></div>`;
+            } else {
+                let html = '';
+                pending.slice(0, 5).forEach(l => {
+                    const name = getEmployeeName(l.employeeId);
+                    html += `<div class="list-item">
+                        <span class="name">${name}</span>
+                        <span class="status status-pending">${l.fromDate} → ${l.toDate}</span>
+                    </div>`;
+                });
+                if (pending.length > 5) html += `<div class="list-item text-muted">+${pending.length - 5} more</div>`;
+                pendingEl.innerHTML = html;
+            }
+        }
+
+        // ============================================================
+        //  EMPLOYEES (ID column removed)
+        // ============================================================
+        function renderEmployees() {
+            const search = document.getElementById('empSearch').value.toLowerCase();
+            const dept = document.getElementById('empDeptFilter').value;
+            let list = data.employees;
+
+            const deptFilter = document.getElementById('empDeptFilter');
+            const uniqueDepts = ['All Departments', ...new Set(data.employees.map(e => e.department).filter(Boolean))];
+            const currentVal = deptFilter.value;
+            deptFilter.innerHTML = uniqueDepts.map(d => {
+                const val = d === 'All Departments' ? '' : d;
+                return `<option value="${val}" ${val === currentVal ? 'selected' : ''}>${d}</option>`;
+            }).join('');
+
+            if (search) list = list.filter(e => e.name.toLowerCase().includes(search));
+            if (dept) list = list.filter(e => e.department === dept);
+
+            const container = document.getElementById('employeeTableContainer');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No employees found</p></div>`;
+                return;
+            }
+            // ID column removed
+            let html = `<table>
+                <thead><tr>
+                    <th>Name</th><th>Department</th><th>Designation</th><th>Phone</th><th>Actions</th>
+                </tr></thead><tbody>`;
+            list.forEach(e => {
+                html += `<tr>
+                    <td>${e.name}</td>
+                    <td>${e.department}</td>
+                    <td>${e.designation}</td>
+                    <td>${e.phone || '-'}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="editEmployee(${e.id})"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${e.id})"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function openModal(type, editData = null) {
+            const overlay = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+
+            if (type === 'employee') {
+                const isEdit = !!editData;
+                title.textContent = isEdit ? 'Edit Employee' : 'Add Employee';
+                const e = editData || {};
+                body.innerHTML = `
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="fEmpName" value="${e.name || ''}" placeholder="John Doe" />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Department *</label>
+                            <select id="fEmpDept">
+                                ${['Engineering','Marketing','Sales','HR','Finance','Operations'].map(d => `<option value="${d}" ${e.department === d ? 'selected' : ''}>${d}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Designation *</label>
+                            <input type="text" id="fEmpDesig" value="${e.designation || ''}" placeholder="Software Engineer" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" id="fEmpPhone" value="${e.phone || ''}" placeholder="+91 98765 43210" />
+                    </div>
+                    <button class="btn-submit" onclick="saveEmployee(${editData ? editData.id : 'null'})">
+                        <i class="fas fa-save"></i> ${isEdit ? 'Update' : 'Add'} Employee
+                    </button>
+                `;
+            } else if (type === 'leave') {
+                title.textContent = 'Apply for Leave';
+                body.innerHTML = `
+                    <div class="form-group">
+                        <label>Employee *</label>
+                        <select id="fLeaveEmp">
+                            ${data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>From Date *</label>
+                            <input type="date" id="fLeaveFrom" value="${getToday()}" />
+                        </div>
+                        <div class="form-group">
+                            <label>To Date *</label>
+                            <input type="date" id="fLeaveTo" value="${getToday()}" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Reason *</label>
+                        <textarea id="fLeaveReason" placeholder="Sick, personal, etc."></textarea>
+                    </div>
+                    <button class="btn-submit" onclick="saveLeave()"><i class="fas fa-paper-plane"></i> Submit</button>
+                `;
+            }
+            overlay.classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('open');
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ============================================================
+        //  EMPLOYEE CRUD
+        // ============================================================
+        function saveEmployee(id) {
+            const name = document.getElementById('fEmpName').value.trim();
+            const dept = document.getElementById('fEmpDept').value;
+            const desig = document.getElementById('fEmpDesig').value.trim();
+            const phone = document.getElementById('fEmpPhone').value.trim();
+            if (!name || !dept || !desig) {
+                toast('Please fill all required fields', 'error');
+                return;
+            }
+            if (id) {
+                const emp = getEmployee(id);
+                if (emp) {
+                    emp.name = name;
+                    emp.department = dept;
+                    emp.designation = desig;
+                    emp.phone = phone;
+                    syncData();
+                    toast('Employee updated!', 'success');
+                }
+            } else {
+                const newEmp = {
+                    id: data.nextEmpId++,
+                    name,
+                    department: dept,
+                    designation: desig,
+                    phone
+                };
+                data.employees.push(newEmp);
+                syncData();
+                toast('Employee added!', 'success');
+            }
+            closeModal();
+            renderEmployees();
+            refreshDashboard();
+        }
+
+        function editEmployee(id) {
+            const emp = getEmployee(id);
+            if (emp) openModal('employee', emp);
+        }
+
+        function deleteEmployee(id) {
+            if (!confirm('Delete this employee? This will also remove their attendance & leave records.')) return;
+            data.employees = data.employees.filter(e => e.id !== id);
+            data.attendance = data.attendance.filter(a => a.employeeId !== id);
+            data.leaves = data.leaves.filter(l => l.employeeId !== id);
+            syncData();
+            toast('Employee deleted', 'warning');
+            renderEmployees();
+            refreshDashboard();
+        }
+
+        // ============================================================
+        //  ATTENDANCE (Designation column added between Employee and Status)
+        // ============================================================
+        function renderAttendance() {
+            const date = document.getElementById('attDate').value || getToday();
+            document.getElementById('attDate').value = date;
+
+            const container = document.getElementById('attendanceTableContainer');
+            if (data.employees.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-clipboard-check"></i><p>No employees to mark</p></div>`;
+                return;
+            }
+
+            let html = `<table>
+                <thead><tr>
+                    <th>Employee</th>
+                    <th>Designation</th>
+                    <th>Status</th>
+                </tr></thead><tbody>`;
+
+            data.employees.forEach(emp => {
+                const record = data.attendance.find(a => a.employeeId === emp.id && a.date === date);
+                const currentStatus = record ? record.status : '';
+                html += `<tr>
+                    <td><strong>${emp.name}</strong></td>
+                    <td>${emp.designation}</td>
+                    <td>
+                        <select onchange="updateAttendance(${emp.id}, '${date}', this.value)" style="width:auto; min-width:140px;">
+                            <option value="">Select</option>
+                            <option value="present" ${currentStatus === 'present' ? 'selected' : ''}>Present</option>
+                            <option value="absent" ${currentStatus === 'absent' ? 'selected' : ''}>Absent</option>
+                            <option value="half" ${currentStatus === 'half' ? 'selected' : ''}>Half Day</option>
+                        </select>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function updateAttendance(empId, date, status) {
+            const existingIndex = data.attendance.findIndex(a => a.employeeId === empId && a.date === date);
+
+            if (status === '') {
+                if (existingIndex !== -1) {
+                    data.attendance.splice(existingIndex, 1);
+                    syncData();
+                    refreshDashboard();
+                    toast('Attendance cleared', 'warning');
+                }
+                return;
+            }
+
+            if (existingIndex !== -1) {
+                data.attendance[existingIndex].status = status;
+            } else {
+                data.attendance.push({
+                    id: data.nextAttId++,
+                    employeeId: empId,
+                    date: date,
+                    status: status,
+                    checkIn: null,
+                    checkOut: null
+                });
+            }
+            syncData();
+            refreshDashboard();
+            toast('Attendance updated!', 'success');
+        }
+
+        function markAllPresent() {
+            const date = document.getElementById('attDate').value || getToday();
+            data.employees.forEach(emp => {
+                const existingIndex = data.attendance.findIndex(a => a.employeeId === emp.id && a.date === date);
+                if (existingIndex !== -1) {
+                    data.attendance[existingIndex].status = 'present';
+                } else {
+                    data.attendance.push({
+                        id: data.nextAttId++,
+                        employeeId: emp.id,
+                        date: date,
+                        status: 'present',
+                        checkIn: null,
+                        checkOut: null
+                    });
+                }
+            });
+            syncData();
+            renderAttendance();
+            refreshDashboard();
+            toast('All marked present!', 'success');
+        }
+
+        // ============================================================
+        //  LEAVES
+        // ============================================================
+        function renderLeaves() {
+            const filter = document.getElementById('leaveStatusFilter').value;
+            let list = [...data.leaves];
+            if (filter) list = list.filter(l => l.status === filter);
+            list.sort((a, b) => b.id - a.id);
+
+            const container = document.getElementById('leaveTableContainer');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-alt"></i><p>No leave records</p></div>`;
+                return;
+            }
+            let html = `<table>
+                <thead><tr>
+                    <th>Employee</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Actions</th>
+                </tr></thead><tbody>`;
+            list.forEach(l => {
+                const name = getEmployeeName(l.employeeId);
+                const statusClass = `status-${l.status}`;
+                const isPending = l.status === 'pending';
+                html += `<tr>
+                    <td>${name}</td>
+                    <td>${formatDate(l.fromDate)}</td>
+                    <td>${formatDate(l.toDate)}</td>
+                    <td>${l.reason || '-'}</td>
+                    <td><span class="status ${statusClass}">${l.status.charAt(0).toUpperCase() + l.status.slice(1)}</span></td>
+                    <td>
+                        ${isPending ? `
+                            <button class="btn btn-success btn-sm" onclick="approveLeave(${l.id})"><i class="fas fa-check"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="rejectLeave(${l.id})"><i class="fas fa-times"></i></button>
+                        ` : `
+                            <button class="btn btn-danger btn-sm" onclick="deleteLeave(${l.id})"><i class="fas fa-trash"></i></button>
+                        `}
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function saveLeave() {
+            const empId = parseInt(document.getElementById('fLeaveEmp').value);
+            const from = document.getElementById('fLeaveFrom').value;
+            const to = document.getElementById('fLeaveTo').value;
+            const reason = document.getElementById('fLeaveReason').value.trim();
+
+            if (!empId || !from || !to || !reason) {
+                toast('Please fill all fields', 'error');
+                return;
+            }
+            if (from > to) {
+                toast('From date must be before To date', 'error');
+                return;
+            }
+            const newLeave = {
+                id: data.nextLeaveId++,
+                employeeId: empId,
+                fromDate: from,
+                toDate: to,
+                reason,
+                status: 'pending'
+            };
+            data.leaves.push(newLeave);
+            syncData();
+            toast('Leave applied!', 'success');
+            closeModal();
+            renderLeaves();
+            refreshDashboard();
+        }
+
+        function approveLeave(id) {
+            const l = data.leaves.find(x => x.id === id);
+            if (l) { l.status = 'approved';
+                syncData();
+                toast('Leave approved', 'success');
+                renderLeaves();
+                refreshDashboard(); }
+        }
+
+        function rejectLeave(id) {
+            const l = data.leaves.find(x => x.id === id);
+            if (l) { l.status = 'rejected';
+                syncData();
+                toast('Leave rejected', 'warning');
+                renderLeaves();
+                refreshDashboard(); }
+        }
+
+        function deleteLeave(id) {
+            if (!confirm('Delete this leave record?')) return;
+            data.leaves = data.leaves.filter(l => l.id !== id);
+            syncData();
+            toast('Leave deleted', 'warning');
+            renderLeaves();
+            refreshDashboard();
+        }
+
+        // ============================================================
+        //  REPORTS
+        // ============================================================
+        function renderReports() {
+            const period = document.getElementById('reportPeriod').value;
+            const date = document.getElementById('reportDate').value;
+            let filtered = [...data.attendance];
+            const today = getToday();
+
+            if (period === 'daily') {
+                const target = date || today;
+                filtered = filtered.filter(a => a.date === target);
+            } else if (period === 'weekly') {
+                const r = getWeekRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            } else if (period === 'monthly') {
+                const r = getMonthRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            }
+
+            const grouped = {};
+            filtered.forEach(a => {
+                if (!grouped[a.employeeId]) grouped[a.employeeId] = { present: 0, absent: 0, half: 0, leave: 0,
+                    holiday: 0, total: 0 };
+                grouped[a.employeeId][a.status] = (grouped[a.employeeId][a.status] || 0) + 1;
+                grouped[a.employeeId].total += 1;
+            });
+
+            const container = document.getElementById('reportTableContainer');
+            const keys = Object.keys(grouped);
+            if (keys.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-file-alt"></i><p>No data for this period</p></div>`;
+                return;
+            }
+            let html = `<table>
+                <thead><tr>
+                    <th>Employee</th><th>Present</th><th>Absent</th><th>Half Day</th><th>Leave</th><th>Holiday</th><th>Total</th>
+                </tr></thead><tbody>`;
+            keys.forEach(empId => {
+                const g = grouped[empId];
+                const name = getEmployeeName(parseInt(empId));
+                html += `<tr>
+                    <td><strong>${name}</strong></td>
+                    <td class="text-success">${g.present || 0}</td>
+                    <td class="text-danger">${g.absent || 0}</td>
+                    <td class="text-warning">${g.half || 0}</td>
+                    <td class="text-info">${g.leave || 0}</td>
+                    <td class="text-muted">${g.holiday || 0}</td>
+                    <td><strong>${g.total}</strong></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // ============================================================
+        //  EXPORTS (CSV, PDF, Excel)
+        // ============================================================
+        function exportCSV() {
+            const period = document.getElementById('reportPeriod').value;
+            const date = document.getElementById('reportDate').value;
+            let filtered = [...data.attendance];
+            const today = getToday();
+            if (period === 'daily') {
+                const target = date || today;
+                filtered = filtered.filter(a => a.date === target);
+            } else if (period === 'weekly') {
+                const r = getWeekRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            } else if (period === 'monthly') {
+                const r = getMonthRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            }
+            if (filtered.length === 0) {
+                toast('No data to export', 'warning');
+                return;
+            }
+            let csv = 'Date,Employee,Status\n';
+            filtered.forEach(a => {
+                const name = getEmployeeName(a.employeeId);
+                csv += `${a.date},${name},${a.status}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance_report_${period}_${today}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('CSV exported!', 'success');
+        }
+
+        function exportPDF() {
+            const period = document.getElementById('reportPeriod').value;
+            const date = document.getElementById('reportDate').value;
+            let filtered = [...data.attendance];
+            const today = getToday();
+            if (period === 'daily') {
+                const target = date || today;
+                filtered = filtered.filter(a => a.date === target);
+            } else if (period === 'weekly') {
+                const r = getWeekRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            } else if (period === 'monthly') {
+                const r = getMonthRange();
+                filtered = filtered.filter(a => a.date >= r.start && a.date <= r.end);
+            }
+            if (filtered.length === 0) {
+                toast('No data to export', 'warning');
+                return;
+            }
+            let htmlContent = `
+                <html><head><style>
+                    body { font-family: Arial, sans-serif; padding: 30px; }
+                    h1 { color: #2a5c8a; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+                    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+                    th { background: #e2e8f0; }
+                    .footer { margin-top: 20px; color: #64748b; font-size: 13px; }
+                </style></head>
+                <body>
+                    <h1>Attendance Report — ${period.charAt(0).toUpperCase() + period.slice(1)}</h1>
+                    <p>Generated: ${new Date().toLocaleString()}</p>
+                    <table>
+                        <thead><tr><th>Date</th><th>Employee</th><th>Status</th></tr></thead>
+                        <tbody>
+            `;
+            filtered.forEach(a => {
+                const name = getEmployeeName(a.employeeId);
+                htmlContent += `<tr><td>${a.date}</td><td>${name}</td><td>${a.status}</td></tr>`;
+            });
+            htmlContent += `
+                        </tbody>
+                    </table>
+                    <div class="footer">EMS — Employee Management System</div>
+                </body></html>
+            `;
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.write(htmlContent);
+                win.document.close();
+                win.focus();
+                win.print();
+                toast('PDF opened for printing', 'success');
+            } else {
+                toast('Please allow popups to export PDF', 'error');
+            }
+        }
+
+        async function exportExcelShiftSchedule() {
+            if (typeof ExcelJS === 'undefined') {
+                toast('ExcelJS library not loaded. Please refresh.', 'error');
+                return;
+            }
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Shift Schedule');
+
+            worksheet.mergeCells('A1:J1');
+            const titleRow = worksheet.getRow(1);
+            titleRow.getCell(1).value = 'Shift schedule';
+            titleRow.height = 30;
+            titleRow.getCell(1).font = { size: 16, bold: true };
+            titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+            titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const start = new Date(today);
+            start.setDate(today.getDate() - dayOfWeek + 1);
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(start);
+                d.setDate(start.getDate() + i);
+                dates.push(d);
+            }
+
+            const headerRow = worksheet.getRow(3);
+            const headerCells = ['SL.NO', 'Name', ...dates.map(d => formatDateExcel(d)), 'Paid Day'];
+            headerRow.values = headerCells;
+            headerRow.height = 25;
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' },
+                    right: { style: 'thin' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+            });
+
+            let rowIndex = 4;
+            data.employees.forEach((emp, idx) => {
+                const row = worksheet.getRow(rowIndex);
+                row.height = 22;
+                row.getCell(1).value = idx + 1;
+                row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(2).value = emp.name;
+                row.getCell(2).alignment = { vertical: 'middle' };
+
+                let paidDays = 0;
+                dates.forEach((d, colIdx) => {
+                    const dateStr = toDateStr(d);
+                    const att = data.attendance.find(a => a.employeeId === emp.id && a.date === dateStr);
+                    let statusChar = '';
+                    let bgColor = null;
+                    if (att) {
+                        if (att.status === 'present') { statusChar = 'p';
+                            bgColor = 'FFC6EFCE';
+                            paidDays++; }
+                        else if (att.status === 'absent') { statusChar = 'A';
+                            bgColor = 'FFFFC7CE'; }
+                        else if (att.status === 'half') { statusChar = 'H';
+                            bgColor = 'FFFFEB9C'; }
+                        else if (att.status === 'leave') { statusChar = 'L';
+                            bgColor = 'FFBDD7EE'; }
+                        else if (att.status === 'holiday') { statusChar = 'H';
+                            bgColor = 'FFE2EFDA'; }
+                    }
+                    const cell = row.getCell(3 + colIdx);
+                    cell.value = statusChar;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    if (bgColor) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                    }
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' },
+                        right: { style: 'thin' } };
+                });
+
+                row.getCell(10).value = paidDays;
+                row.getCell(10).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(10).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' },
+                    right: { style: 'thin' } };
+                rowIndex++;
+            });
+
+            worksheet.columns.forEach((column) => {
+                column.width = 12;
+            });
+            worksheet.getColumn(2).width = 20;
+            worksheet.getColumn(10).width = 10;
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Shift_Schedule.xlsx';
+            link.click();
+            URL.revokeObjectURL(link.href);
+            toast('Shift Schedule Excel exported successfully!', 'success');
+        }
+
+        // ============================================================
+        //  KEYBOARD SHORTCUT
+        // ============================================================
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        console.log('🚀 EMS v4 ready! Connected to Firebase.');
+        console.log('💡 Data is synced with Firebase Realtime Database.');
+    </script>
+</body>
+</html>
